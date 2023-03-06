@@ -1,14 +1,14 @@
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
+import { MikroORM } from '@mikro-orm/core';
+import { ForbiddenException, BadRequestException } from '@nestjs/common';
+import { TestingModule } from '@nestjs/testing';
+import createTestModule from '../../../../test/helpers/TestModuleHelper';
+import { User } from '../../../domains/entities';
+import { LoginDTO, RegisterDTO } from '../../../infrastructures/dto/auth';
+import { AuthService } from '../auth.service';
 import { UserRepositoryHelper } from './../../../../test/helpers/UserRepositoryHelper';
 import { UserRepository } from './../../../infrastructures/repository';
-import { MikroORM } from '@mikro-orm/core';
-import { MikroOrmModule } from '@mikro-orm/nestjs';
-import { ConfigModule } from '@nestjs/config';
-import { Test, TestingModule } from '@nestjs/testing';
-import mikroOrmConfig from '../../../config/mikro-orm.config';
-import { User } from '../../../domains/entities';
-import { RegisterDTO } from '../../../infrastructures/dto/auth';
-import { AuthService } from '../auth.service';
-import { BadRequestException } from '@nestjs/common/exceptions/bad-request.exception';
 
 describe('AuthService', () => {
   let app: TestingModule;
@@ -17,20 +17,22 @@ describe('AuthService', () => {
   let userRepository: UserRepository;
 
   beforeAll(async () => {
-    app = await Test.createTestingModule({
-      imports: [
-        ConfigModule.forRoot({
-          envFilePath: '.env.test',
-        }),
-        MikroOrmModule.forRoot({
-          ...mikroOrmConfig(),
-          entities: [User],
-          allowGlobalContext: true,
-        }),
-        MikroOrmModule.forFeature([User]),
-      ],
+    app = await createTestModule({
+      entities: [User],
       providers: [AuthService],
-    }).compile();
+      imports: [
+        JwtModule.registerAsync({
+          imports: [ConfigModule],
+          inject: [ConfigService],
+          useFactory: (config: ConfigService) => ({
+            secret: config.get<string>('JWT_ACCESS_SECRET'),
+            signOptions: {
+              expiresIn: config.get<string>('JWT_ACCESS_EXPIRES'),
+            },
+          }),
+        }),
+      ],
+    });
 
     orm = app.get<MikroORM>(MikroORM);
     authService = app.get<AuthService>(AuthService);
@@ -49,7 +51,7 @@ describe('AuthService', () => {
   });
 
   describe('register', () => {
-    it('should throw BadRequestException when the user is exists', async () => {
+    it('should throw BadRequestException when the user is already exists', async () => {
       // Arrange
       const existUserEmail = 'user@example.com';
       await UserRepositoryHelper.createUser(userRepository, {
@@ -86,6 +88,63 @@ describe('AuthService', () => {
 
       expect(fullName).toEqual(payload.fullName);
       expect(email).toEqual(payload.email);
+    });
+  });
+
+  describe('login', () => {
+    it('should throw Forbidden when credentials is invalid', async () => {
+      // Arrange
+      const payload: LoginDTO = {
+        email: 'test@gmail.com',
+        password: 'wrong_password',
+      };
+
+      // Action & Assert
+      await expect(() => authService.login(payload)).rejects.toThrowError(
+        ForbiddenException,
+      );
+    });
+
+    it('should return access_token and refresh_token', async () => {
+      // Arrange
+      const payload: LoginDTO = {
+        email: 'john@gmail.com',
+        password: 'valid_password',
+      };
+
+      await UserRepositoryHelper.createUser(
+        userRepository,
+        {
+          email: payload.email,
+          password: payload.password,
+        },
+        { hashPassword: true },
+      );
+
+      // Action
+      const { access_token, refresh_token } = await authService.login(payload);
+
+      expect(access_token).toBeDefined();
+      expect(refresh_token).toBeDefined();
+    });
+  });
+
+  describe('generateTokens', () => {
+    it('should return access_token and refresh_token', async () => {
+      // Arrange
+      const payload = {
+        email: 'smith@gmail.com',
+        fullName: 'Adam Smith',
+      };
+
+      // Action
+      const { access_token, refresh_token } = await authService.generateTokens(
+        payload,
+      );
+
+      // Assert
+      expect(access_token).toBeDefined();
+      expect(refresh_token).toBeDefined();
     });
   });
 });
