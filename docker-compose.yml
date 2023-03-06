@@ -1,0 +1,12 @@
+services:
+  dev-db:
+    image: postgres
+    volumes:
+      - '.:/codemart/dev/'
+    ports:
+      - 5442:5432
+    environment:
+      - POSTGRES_PASSWORD=password
+
+networks:
+  codemart-app:
