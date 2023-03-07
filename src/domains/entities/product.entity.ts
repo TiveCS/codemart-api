@@ -1,13 +1,16 @@
+import { ProductRepository } from './../../infrastructures/repository';
 import { User } from '../entities';
 import { Entity, ManyToOne, PrimaryKey, Property } from '@mikro-orm/core';
 
-@Entity()
+@Entity({
+  customRepository: () => ProductRepository,
+})
 export class Product {
   @PrimaryKey()
   id: number;
 
   @ManyToOne(() => User)
-  owner!: User;
+  owner: User;
 
   @Property()
   title: string;
