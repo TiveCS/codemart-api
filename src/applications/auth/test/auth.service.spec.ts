@@ -37,8 +37,6 @@ describe('AuthService', () => {
     orm = app.get<MikroORM>(MikroORM);
     authService = app.get<AuthService>(AuthService);
     userRepository = app.get<UserRepository>(UserRepository);
-
-    await orm.getSchemaGenerator().refreshDatabase();
   });
 
   afterEach(async () => {

@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 
 import mikroOrmConfig from './config/mikro-orm.config';
 import { validate } from './config/validations';
+import { ProductsModule } from './applications/products/products.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { validate } from './config/validations';
       useFactory: async () => mikroOrmConfig(),
     }),
     AuthModule,
+    ProductsModule,
   ],
 })
 export class AppModule {}
