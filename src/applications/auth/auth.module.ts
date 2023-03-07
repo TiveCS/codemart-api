@@ -1,3 +1,4 @@
+import { AuthController } from './auth.controller';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -20,5 +21,6 @@ import { JwtAccessStrategy } from './strategy';
     }),
   ],
   providers: [AuthService, JwtAccessStrategy],
+  controllers: [AuthController],
 })
 export class AuthModule {}

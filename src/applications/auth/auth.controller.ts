@@ -1,8 +1,9 @@
-import { RegisterDTO } from './../../infrastructures/dto/auth/register.dto';
+import { LoginDTO, RegisterDTO } from './../../infrastructures/dto/auth';
 import { AuthService } from './auth.service';
-import { Controller } from '@nestjs/common';
-import { Post } from '@nestjs/common/decorators/http/request-mapping.decorator';
-import { Body } from '@nestjs/common/decorators/http/route-params.decorator';
+import { Controller, HttpStatus } from '@nestjs/common';
+import { Body, Get, HttpCode, Post } from '@nestjs/common/decorators/http';
+import { UseGuards } from '@nestjs/common/decorators';
+import { JwtAccessGuard } from './guards';
 
 @Controller('auth')
 export class AuthController {
@@ -11,5 +12,17 @@ export class AuthController {
   @Post('register')
   async register(@Body() dto: RegisterDTO) {
     return this.authService.register(dto);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('login')
+  async login(@Body() dto: LoginDTO) {
+    return this.authService.login(dto);
+  }
+
+  @UseGuards(JwtAccessGuard)
+  @Get('check')
+  async check() {
+    return { message: 'OK' };
   }
 }
