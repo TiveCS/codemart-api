@@ -2,6 +2,8 @@ import { LoginDTO, RegisterDTO } from './../../infrastructures/dto/auth';
 import { AuthService } from './auth.service';
 import { Controller, HttpStatus } from '@nestjs/common';
 import { Body, Get, HttpCode, Post } from '@nestjs/common/decorators/http';
+import { UseGuards } from '@nestjs/common/decorators';
+import { JwtAccessGuard } from './guards';
 
 @Controller('auth')
 export class AuthController {
@@ -18,6 +20,7 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
+  @UseGuards(JwtAccessGuard)
   @Get('check')
   async check() {
     return { message: 'OK' };
