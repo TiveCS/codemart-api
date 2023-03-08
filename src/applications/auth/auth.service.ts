@@ -58,7 +58,11 @@ export class AuthService {
     if (!isVerified) throw new ForbiddenException('invalid credentials');
 
     // Generate token
-    return this.generateTokens({ email, fullName: user.fullName });
+    return this.generateTokens({
+      sub: user.id,
+      email,
+      fullName: user.fullName,
+    });
   }
 
   async generateTokens(payload: JwtPayload): Promise<Tokens> {
