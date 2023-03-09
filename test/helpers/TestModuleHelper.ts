@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { S3Module } from '../../src/applications/s3/s3.module';
 import mikroOrmConfig from '../../src/config/mikro-orm.config';
 
 export default async function createTestModule({
@@ -28,21 +29,24 @@ export default async function createTestModule({
     | ForwardReference<any>
   )[];
 }): Promise<TestingModule> {
+  const modulesToImport = [
+    ConfigModule.forRoot({
+      envFilePath: '.env.test',
+    }),
+    MikroOrmModule.forRoot({
+      ...mikroOrmConfig(),
+      allowGlobalContext: true,
+    }),
+    ...imports,
+  ];
+
+  console.log(modulesToImport);
+
+  if (entities && entities.length > 0)
+    modulesToImport.push(MikroOrmModule.forFeature({ entities }));
+
   const app = await Test.createTestingModule({
-    imports: [
-      ...imports,
-      ConfigModule.forRoot({
-        envFilePath: '.env.test',
-      }),
-      MikroOrmModule.forRoot({
-        ...mikroOrmConfig(),
-        allowGlobalContext: true,
-      }),
-      entities &&
-        MikroOrmModule.forFeature({
-          entities,
-        }),
-    ],
+    imports: modulesToImport,
     providers,
     controllers,
   }).compile();
