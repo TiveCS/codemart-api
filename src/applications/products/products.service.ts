@@ -3,7 +3,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateProductDTO } from 'src/infrastructures/dto/products';
+import {
+  CreateProductDTO,
+  CreateProductFilesDTO,
+} from 'src/infrastructures/dto/products';
+import { S3Service } from '../s3/s3.service';
 import {
   ProductRepository,
   UserRepository,
@@ -14,18 +18,29 @@ export class ProductsService {
   constructor(
     private readonly productRepository: ProductRepository,
     private readonly userRepository: UserRepository,
+    private readonly s3Service: S3Service,
   ) {}
 
-  async createProduct(dto: CreateProductDTO, ownerId: number) {
+  async createProduct(
+    dto: CreateProductDTO,
+    ownerId: number,
+    files: CreateProductFilesDTO,
+  ) {
     const owner = await this.userRepository.findOne({
       id: ownerId,
     });
 
     if (!owner) throw new BadRequestException('owner is not found');
 
+    await this.s3Service.uploadFile(files['source'][0]);
+    const sourceUrl = await this.s3Service.getSignedUrl(
+      files['source'][0].originalname,
+    );
+
     const newProduct = this.productRepository.create({
       ...dto,
       owner,
+      codeUrl: sourceUrl,
     });
 
     await this.productRepository.persistAndFlush(newProduct);
