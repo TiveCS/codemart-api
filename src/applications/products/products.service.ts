@@ -43,6 +43,15 @@ export class ProductsService {
       codeUrl: sourceUrl,
     });
 
+    if (files['images']) {
+      await this.s3Service.uploadFile(files['images'][0]);
+      const imageUrl = await this.s3Service.getSignedUrl(
+        files['images'][0].originalname,
+      );
+
+      newProduct.imageUrl = imageUrl;
+    }
+
     await this.productRepository.persistAndFlush(newProduct);
 
     return { title: newProduct.title, createdAt: newProduct.createdAt };

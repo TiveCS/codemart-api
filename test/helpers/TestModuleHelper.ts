@@ -28,21 +28,22 @@ export default async function createTestModule({
     | ForwardReference<any>
   )[];
 }): Promise<TestingModule> {
+  const modulesToImport = [
+    ConfigModule.forRoot({
+      envFilePath: '.env.test',
+    }),
+    MikroOrmModule.forRoot({
+      ...mikroOrmConfig(),
+      allowGlobalContext: true,
+    }),
+    ...imports,
+  ];
+
+  if (entities && entities.length > 0)
+    modulesToImport.push(MikroOrmModule.forFeature({ entities }));
+
   const app = await Test.createTestingModule({
-    imports: [
-      ...imports,
-      ConfigModule.forRoot({
-        envFilePath: '.env.test',
-      }),
-      MikroOrmModule.forRoot({
-        ...mikroOrmConfig(),
-        allowGlobalContext: true,
-      }),
-      entities &&
-        MikroOrmModule.forFeature({
-          entities,
-        }),
-    ],
+    imports: modulesToImport,
     providers,
     controllers,
   }).compile();

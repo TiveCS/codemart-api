@@ -1,6 +1,9 @@
 import { MikroORM } from '@mikro-orm/core';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { TestingModule } from '@nestjs/testing';
+import { S3 } from 'aws-sdk';
+import { MulterHelperFile } from '../../../../test/helpers/MulterFileHelper';
 import createTestModule from '../../../../test/helpers/TestModuleHelper';
 import { ProductsService } from '../products.service';
 import { ProductRepositoryHelper } from './../../../../test/helpers/ProductRepositoryHelper';
@@ -12,6 +15,7 @@ import {
   ProductRepository,
   UserRepository,
 } from './../../../infrastructures/repository';
+import { S3Service } from './../../s3/s3.service';
 
 describe('ProductsService', () => {
   let app: TestingModule;
@@ -23,7 +27,24 @@ describe('ProductsService', () => {
   beforeAll(async () => {
     app = await createTestModule({
       entities: [Product, User],
-      providers: [ProductsService],
+      providers: [
+        ProductsService,
+        S3Service,
+        {
+          provide: 'AWS_S3_CLIENT',
+          inject: [ConfigService],
+          useFactory: (config: ConfigService): S3 => {
+            const s3 = new S3({
+              credentials: {
+                accessKeyId: config.get<string>('S3_ACCESS_KEY'),
+                secretAccessKey: config.get<string>('S3_SECRET_KEY'),
+              },
+              endpoint: config.get<string>('S3_ENDPOINT'),
+            });
+            return s3;
+          },
+        },
+      ],
     });
 
     orm = app.get<MikroORM>(MikroORM);
@@ -50,9 +71,18 @@ describe('ProductsService', () => {
         codeUrl: 'http://github.com/TiveCS/random-project',
       };
 
+      const sourceFile = MulterHelperFile.toMulter({
+        fieldname: 'source',
+        buffer: Buffer.from('../../../../test/mocks/files/example-zip.zip'),
+        mimetype: 'application/zip',
+        originalname: 'example-zip',
+      }) as Express.Multer.File;
+
       // Action & Assert
       await expect(() =>
-        productsService.createProduct(payload, 100),
+        productsService.createProduct(payload, 100, {
+          source: [sourceFile],
+        }),
       ).rejects.toThrowError(BadRequestException);
     });
 
@@ -65,15 +95,31 @@ describe('ProductsService', () => {
         id: ownerId,
       });
 
+      const sourceFile = MulterHelperFile.toMulter({
+        fieldname: 'source',
+        buffer: Buffer.from('../../../../test/mocks/files/example-zip.zip'),
+        mimetype: 'application/zip',
+        originalname: 'example-zip',
+      }) as Express.Multer.File;
+
+      const imageFile = MulterHelperFile.toMulter({
+        fieldname: 'images',
+        buffer: Buffer.from('../../../../test/mocks/files/example-img.png'),
+        mimetype: 'image/png',
+        originalname: 'example-img',
+      }) as Express.Multer.File;
+
       const payload: CreateProductDTO = {
         title: 'untitled',
         description: 'lorem ipsum',
         version: '1.0.0',
-        codeUrl: 'http://github.com/TiveCS/random-project',
       };
 
       // Action
-      await productsService.createProduct(payload, ownerId);
+      await productsService.createProduct(payload, ownerId, {
+        source: [sourceFile],
+        images: [imageFile],
+      });
 
       // Assert
       const found = await ProductRepositoryHelper.find(productRepository, {
@@ -83,7 +129,8 @@ describe('ProductsService', () => {
       expect(found.title).toEqual(payload.title);
       expect(found.description).toEqual(payload.description);
       expect(found.version).toEqual(payload.version);
-      expect(found.codeUrl).toEqual(payload.codeUrl);
+      expect(found.codeUrl).toBeDefined();
+      expect(found.imageUrl).toBeDefined();
     });
   });
 
