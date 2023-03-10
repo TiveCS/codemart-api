@@ -131,6 +131,7 @@ describe('AuthService', () => {
     it('should return access_token and refresh_token', async () => {
       // Arrange
       const payload = {
+        sub: 1,
         email: 'smith@gmail.com',
         fullName: 'Adam Smith',
       };
