@@ -10,7 +10,6 @@ import {
 } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
-import { S3Module } from '../../src/applications/s3/s3.module';
 import mikroOrmConfig from '../../src/config/mikro-orm.config';
 
 export default async function createTestModule({
@@ -39,8 +38,6 @@ export default async function createTestModule({
     }),
     ...imports,
   ];
-
-  console.log(modulesToImport);
 
   if (entities && entities.length > 0)
     modulesToImport.push(MikroOrmModule.forFeature({ entities }));
