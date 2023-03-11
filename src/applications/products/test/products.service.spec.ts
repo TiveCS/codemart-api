@@ -1,5 +1,9 @@
 import { MikroORM } from '@mikro-orm/core';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TestingModule } from '@nestjs/testing';
 import { S3 } from 'aws-sdk';
@@ -10,7 +14,10 @@ import { ProductRepositoryHelper } from './../../../../test/helpers/ProductRepos
 import { UserRepositoryHelper } from './../../../../test/helpers/UserRepositoryHelper';
 import { Product } from './../../../domains/entities';
 import { User } from './../../../domains/entities/user.entity';
-import { CreateProductDTO } from './../../../infrastructures/dto/products';
+import {
+  CreateProductDTO,
+  UpdateProductDTO,
+} from './../../../infrastructures/dto/products';
 import {
   ProductRepository,
   UserRepository,
@@ -164,6 +171,93 @@ describe('ProductsService', () => {
       // Assert
       expect(found).toBeDefined();
       expect(found.id).toEqual(productId);
+    });
+  });
+
+  describe('updateProduct', () => {
+    it('should persist new value', async () => {
+      // Arrange
+      const productId = 1;
+      const ownerId = 1;
+
+      await UserRepositoryHelper.createUser(userRepository, {
+        id: ownerId,
+      });
+
+      await ProductRepositoryHelper.create(orm, productRepository, {
+        id: productId,
+        owner_id: ownerId,
+      });
+
+      const payload: UpdateProductDTO = {
+        title: 'new title',
+        description: 'new description',
+        version: '1.1.0',
+        codeUrl: 'http://newsrc.com',
+      };
+
+      // Action
+      await productsService.updateProduct(productId, ownerId, payload);
+
+      // Assert
+      const product = await ProductRepositoryHelper.find(productRepository, {
+        id: productId,
+      });
+      expect(product).toBeDefined();
+      expect(product.title).toEqual(payload.title);
+      expect(product.description).toEqual(payload.description);
+      expect(product.version).toEqual(payload.version);
+      expect(product.codeUrl).toEqual(payload.codeUrl);
+    });
+
+    it('should throw ForbiddenException when user is not the owner', async () => {
+      // Arrange
+      const productId = 1;
+      const ownerId = 1;
+      const otherUserId = 2;
+
+      await UserRepositoryHelper.createUser(userRepository, {
+        id: ownerId,
+      });
+      await UserRepositoryHelper.createUser(userRepository, {
+        id: otherUserId,
+        email: 'other@email.com',
+      });
+
+      await ProductRepositoryHelper.create(orm, productRepository, {
+        id: productId,
+        owner_id: ownerId,
+      });
+
+      const payload: UpdateProductDTO = {
+        title: 'new title',
+        description: 'new description',
+        version: '1.1.0',
+        codeUrl: 'http://newsrc.com',
+      };
+
+      // Action & Assert
+      await expect(() =>
+        productsService.updateProduct(productId, otherUserId, payload),
+      ).rejects.toThrowError(ForbiddenException);
+    });
+
+    it('should throw NotFoundException when product is not found', async () => {
+      // Arrange
+      const productId = 1;
+      const ownerId = 1;
+
+      const payload: UpdateProductDTO = {
+        title: 'new title',
+        description: 'new description',
+        version: '1.1.0',
+        codeUrl: 'http://newsrc.com',
+      };
+
+      // Action & Assert
+      await expect(() =>
+        productsService.updateProduct(productId, ownerId, payload),
+      ).rejects.toThrowError(NotFoundException);
     });
   });
 });

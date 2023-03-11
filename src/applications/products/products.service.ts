@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import {
   CreateProductDTO,
   CreateProductFilesDTO,
+  UpdateProductDTO,
 } from 'src/infrastructures/dto/products';
 import { S3Service } from '../s3/s3.service';
 import {
@@ -65,5 +67,31 @@ export class ProductsService {
     if (!product) throw new NotFoundException('product is not exists');
 
     return product;
+  }
+
+  async updateProduct(
+    productId: number,
+    ownerId: number,
+    dto: UpdateProductDTO,
+  ) {
+    const product = await this.productRepository.findOne({
+      id: productId,
+    });
+
+    if (!product) throw new NotFoundException('product is not found');
+
+    if (product.owner.id !== ownerId)
+      throw new ForbiddenException('not enough permission');
+
+    product.title = dto.title;
+    product.description = dto.description;
+    product.version = dto.version;
+
+    if (dto.imageUrl) product.imageUrl = dto.imageUrl;
+    if (dto.codeUrl) product.codeUrl = dto.codeUrl;
+
+    await this.productRepository.persistAndFlush(product);
+
+    return { updatedAt: product.updatedAt };
   }
 }
